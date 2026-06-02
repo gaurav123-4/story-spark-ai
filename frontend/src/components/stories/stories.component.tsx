@@ -16,6 +16,16 @@ import StoryGeneratingAnimation from "../loading/story-generating-animation.comp
 
 type Inputs = { prompt: string };
 
+// Helper function to remove duplicate stories
+const getuniqueStories = (stories: IStories[]): IStories[] => {
+  const seen = new Set<string>();
+  return stories.filter((story) => {
+    if (seen.has(story.uuid)) return false;
+    seen.add(story.uuid);
+    return true;
+  });
+};
+
 type StoryItem = {
   uuid: string;
   title: string;
@@ -181,6 +191,17 @@ const LANGUAGES = [
 
 const LANGUAGE_STORAGE_KEY = "storySparkLanguage";
 
+const GENRES = [
+  { name: "🧙 Fantasy", value: "🧙 Fantasy" },
+  { name: "🔮 Mystery", value: "🔮 Mystery" },
+  { name: "💖 Romance", value: "💖 Romance" },
+  { name: "🚀 Sci-Fi", value: "🚀 Sci-Fi" },
+  { name: "👻 Horror", value: "👻 Horror" },
+  { name: "⚔️ Adventure", value: "⚔️ Adventure" },
+  { name: "🎭 Drama", value: "🎭 Drama" },
+  { name: "😂 Comedy", value: "😂 Comedy" },
+];
+
 const soundtrackMap: Record<string, string> = {};
 
 const StoriesComponent = () => {
@@ -218,7 +239,7 @@ const storiesPerPage = 10;
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [searchFilter, setSearchFilter] = useState<string>("all");
 
-  const uniqueStories = useMemo(() => getUniqueStories(stories), [stories]);
+  const uniqueStories = useMemo(() => getuniqueStories(stories), [stories]);
 
   const filteredStories = useMemo(() => {
     if (!searchQuery.trim()) return uniqueStories;
@@ -298,6 +319,7 @@ useEffect(() => {
 
   const activeGenerationRef = useRef<{ abort: () => void } | null>(null);
   const isGenerationInProgressRef = useRef(false);
+let timeoutId: ReturnType<typeof setTimeout> | null = null;
   const [guestRequestCount, setGuestRequestCount] = useState<number>(() =>
     parseInt(localStorage.getItem("guestRequestCount") || "0", 10)
   );
@@ -423,7 +445,8 @@ useEffect(() => {
       timeoutId = setTimeout(() => {
         if (isGenerationInProgressRef.current) {
           toast.error("Story generation timed out. Please try again.");
-          handleCancelGeneration(true);
+          setLoading(false);
+          isGenerationInProgressRef.current = false;
         }
       }, 60000);
 
@@ -486,6 +509,8 @@ useEffect(() => {
     setValue("prompt", "");
     reset();
   };
+
+  const isGenerateDisabled = loading || isOverLimit;
 
   useKeyboardShortcuts({
     onOpenHelp: () => setShowHelpModal(true),
